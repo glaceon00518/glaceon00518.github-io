@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>消えるまるばつゲーム (Vanishing Tic-Tac-Toe)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              cyan: '#06b6d4',
+              rose: '#f43f5e',
+              amber: '#f59e0b',
+              violet: '#8b5cf6',
+              dark: '#0f172a'
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-subtle': 'bounceSubtle 1.5s infinite',
+            'glow-pulse': 'glowPulse 2s infinite alternate',
+          },
+          keyframes: {
+            bounceSubtle: {
+              '0%, 100%': { transform: 'translateY(-3%)' },
+              '50%': { transform: 'translateY(0)' },
+            },
+            glowPulse: {
+              '0%': { boxShadow: '0 0 10px rgba(245, 158, 11, 0.3)' },
+              '100%': { boxShadow: '0 0 22px rgba(245, 158, 11, 0.8)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .font-outfit { font-family: 'Outfit', sans-serif; }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 1); }
+
+    /* Glassmorphism Styles */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-card-hover {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card-hover:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(255, 255, 255, 0.18);
+      transform: translateY(-2px);
+    }
+
+    /* Grid cell styles */
+    .board-cell {
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .board-cell:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100">
+
+  <!-- Header -->
+  <header class="w-full border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-rose-500 flex items-center justify-center font-outfit font-extrabold text-xl shadow-lg shadow-cyan-500/20">
+          OX
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-slate-100 to-rose-400 bg-clip-text text-transparent">
+            消えるまるばつゲーム
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Vanishing Tic-Tac-Toe • AI完全解析搭載</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Sound Toggle -->
+        <button id="soundToggleBtn" class="p-2.5 rounded-xl glass-card hover:bg-slate-800 text-slate-300 hover:text-white transition-colors" title="効果音 ON/OFF">
+          <svg id="soundOnIcon" class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+          <svg id="soundOffIcon" class="w-5 h-5 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+        </button>
+
+        <!-- Rule Modal Button -->
+        <button id="rulesBtn" class="p-2.5 rounded-xl glass-card hover:bg-slate-800 text-slate-300 hover:text-white transition-colors" title="ルール">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </button>
+
+        <!-- New Game / Settings Button -->
+        <button id="settingsBtn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition-colors">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span class="hidden sm:inline">設定</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="max-w-5xl mx-auto px-4 py-4 sm:py-6 w-full flex-grow flex flex-col justify-center">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Left Panel: Game Info & Status -->
+      <div class="lg:col-span-4 flex flex-col space-y-4">
+        
+        <!-- Scoreboard / Status Cards -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Player O Card -->
+          <div id="playerOCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between border-2 border-cyan-500/40 relative overflow-hidden transition-all duration-300">
+            <div id="playerOTurnIndicator" class="absolute top-0 right-0 left-0 h-1 bg-cyan-400 shadow-[0_0_12px_#06b6d4]"></div>
+            <div class="flex items-center justify-between mb-2">
+              <span id="playerOName" class="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                <span id="playerOLabel">あなた (O)</span>
+              </span>
+              <span class="text-lg font-black font-outfit text-cyan-400">O</span>
+            </div>
+            
+            <!-- Life Hearts -->
+            <div id="oHearts" class="flex space-x-1 text-rose-500 text-lg my-1">
+              <span>♥</span><span>♥</span><span>♥</span>
+            </div>
+            
+            <!-- Active Queue -->
+            <div class="mt-2 text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
+              <span class="text-slate-500 block text-[10px] uppercase tracking-wider">マーク履歴</span>
+              <div id="oQueueList" class="font-mono mt-1 flex flex-wrap gap-1 min-h-[22px]">
+                <span class="text-slate-600">（なし）</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Player X Card -->
+          <div id="playerXCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between border-2 border-slate-800 relative overflow-hidden transition-all duration-300">
+            <div id="playerXTurnIndicator" class="absolute top-0 right-0 left-0 h-1 bg-rose-500 shadow-[0_0_12px_#f43f5e] opacity-0"></div>
+            <div class="flex items-center justify-between mb-2">
+              <span id="playerXName" class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1">
+                <span id="playerXLabel">AI (X)</span>
+              </span>
+              <span class="text-lg font-black font-outfit text-rose-400">X</span>
+            </div>
+            
+            <!-- Life Hearts -->
+            <div id="xHearts" class="flex space-x-1 text-rose-500 text-lg my-1">
+              <span>♥</span><span>♥</span><span>♥</span>
+            </div>
+
+            <!-- Active Queue -->
+            <div class="mt-2 text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
+              <span class="text-slate-500 block text-[10px] uppercase tracking-wider">マーク履歴</span>
+              <div id="xQueueList" class="font-mono mt-1 flex flex-wrap gap-1 min-h-[22px]">
+                <span class="text-slate-600">（なし）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Thought / Reason Card -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 flex flex-col space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              AIの思考ログ
+            </span>
+            <span id="aiThinkingBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 hidden">
+              思考中...
+            </span>
+          </div>
+          <p id="aiReasonText" class="text-xs font-mono text-cyan-300 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800/80 min-h-[48px] flex items-center">
+            対戦準備完了。あなたの手番です。
+          </p>
+        </div>
+
+        <!-- Hint & Action Control -->
+        <div class="flex space-x-2">
+          <button id="hintBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <span>ヒントを見る</span>
+          </button>
+          
+          <button id="restartBtn" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>やり直し</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Center / Right Panel: Board & Game Area -->
+      <div class="lg:col-span-8 flex flex-col items-center">
+        
+        <!-- Turn Status Banner -->
+        <div id="statusBanner" class="w-full max-w-md mb-4 py-2.5 px-4 rounded-xl glass-card text-center text-sm font-semibold border border-slate-800 flex items-center justify-center space-x-2">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span id="statusText">あなたのターン (O)</span>
+        </div>
+
+        <!-- 3x3 Grid Board -->
+        <div class="relative w-full max-w-md aspect-square p-3 sm:p-4 rounded-3xl glass-card border border-slate-800/80 shadow-2xl flex flex-col justify-center">
+          
+          <div id="boardGrid" class="grid grid-cols-3 gap-2 sm:gap-3 w-full h-full">
+            <!-- 9 cells generated by JS -->
+          </div>
+
+          <!-- Overlay Warning for Overwrite / Life loss -->
+          <div id="overwriteWarningBanner" class="absolute -bottom-10 left-0 right-0 text-center text-xs text-amber-400 font-medium bg-amber-950/80 border border-amber-500/40 py-1.5 px-3 rounded-xl opacity-0 transition-opacity duration-300 pointer-events-none">
+            ⚠ [次に消えるマーク] に置くと自分のライフが -1 されます！
+          </div>
+        </div>
+
+        <!-- Notice / Legend -->
+        <div class="mt-12 text-center text-xs text-slate-400 max-w-md flex items-center justify-center space-x-4">
+          <div class="flex items-center space-x-1.5">
+            <span class="w-3 h-3 rounded-md bg-amber-500/20 border border-amber-500/60 inline-block"></span>
+            <span>[次に消えるマーク]</span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="text-rose-400 font-bold">♥</span>
+            <span>ライフ 3回まで</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-card rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl scale-95 transition-all duration-300" id="settingsModalContainer">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          ゲーム設定
+        </h2>
+        <button id="closeSettingsBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-5">
+        <!-- Game Version / Max Marks -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2">ルール（最大マーク数）</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button id="opt3Marks" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all bg-cyan-500/20 border-cyan-500 text-cyan-300">
+              <span class="text-sm font-bold">3個版</span>
+              <span class="text-[10px] text-slate-400 font-normal">3個置くと古い順に消去</span>
+            </button>
+            <button id="opt4Marks" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200">
+              <span class="text-sm font-bold">4個版</span>
+              <span class="text-[10px] text-slate-400 font-normal">4個置くと古い順に消去</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- First/Second Player -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2">対戦順（手番）</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button id="optFirstPlayer" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all bg-cyan-500/20 border-cyan-500 text-cyan-300">
+              <span>先攻 (O: あなた)</span>
+            </button>
+            <button id="optSecondPlayer" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200">
+              <span>後攻 (X: AI先攻)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode: AI vs Player or 2P Local -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2">対戦モード</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button id="optVsAI" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all bg-cyan-500/20 border-cyan-500 text-cyan-300">
+              <span>VS AI (完全解析)</span>
+            </button>
+            <button id="optVsHuman" class="py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200">
+              <span>2人対戦 (ローカル)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- AI Depth / Difficulty -->
+        <div id="aiDifficultyGroup">
+          <label class="block text-xs font-semibold text-slate-300 mb-2">AIの強度（探索深さ）</label>
+          <select id="aiDepthSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+            <option value="4">初級 (深さ 4)</option>
+            <option value="6">中級 (深さ 6)</option>
+            <option value="8" selected>上級 (深さ 8)</option>
+            <option value="10">完全解析 (深さ 10)</option>
+          </select>
+        </div>
+
+        <button id="applySettingsBtn" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition-all">
+          設定を適用して新しく始める
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules Modal -->
+  <div id="rulesModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-card rounded-3xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl scale-95 transition-all duration-300 max-h-[85vh] overflow-y-auto" id="rulesModalContainer">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          消えるまるばつゲームのルール
+        </h2>
+        <button id="closeRulesBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+          <h3 class="font-bold text-cyan-400 mb-1">1. マーク消滅ルール</h3>
+          <p>盤上に置けるマークの最大数は3個（または4個）です。最大数を超えて新しいマークを置くと、**最も古いマークが自動的に消えます**。</p>
+        </div>
+
+        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+          <h3 class="font-bold text-amber-400 mb-1">2. ライフシステム（ハート ♥）</h3>
+          <p>お互いに **ライフ（ハート）を3つ** 持っています。次に消える予定の「自分の最古マーク」があるマスにマークを直接上書きすると、**ライフが1減ります**。</p>
+        </div>
+
+        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+          <h3 class="font-bold text-rose-400 mb-1">3. 勝利条件</h3>
+          <ul class="list-disc list-inside space-y-1 mt-1 text-slate-300">
+            <li>タテ・ヨコ・ナナメのいずれかで自分のマークを **3つ一列に揃える**。</li>
+            <li>相手の **ライフ（ハート）を 0 に減らす**。</li>
+          </ul>
+        </div>
+
+        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+          <h3 class="font-bold text-violet-400 mb-1">4. AIのアルゴリズム</h3>
+          <p>C++から完全移植された **Minimax（αβ枝刈り）＋置換表（メモ化）＋千日手（無限ループ）自動回避** を搭載。数手先の消滅まで読み切る完全解析AIです。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameOverModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-card rounded-3xl max-w-sm w-full p-6 border border-slate-700 text-center shadow-2xl scale-95 transition-all duration-300 relative overflow-hidden" id="gameOverModalContainer">
+      <div id="gameOverGlow" class="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none"></div>
+
+      <div id="gameOverIcon" class="text-5xl mb-3 animate-bounce-subtle">
+        🎉
+      </div>
+
+      <h2 id="gameOverTitle" class="text-xl font-extrabold text-white mb-1">
+        勝利！
+      </h2>
+      <p id="gameOverSubtitle" class="text-xs text-slate-400 mb-5">
+        素晴らしい先読みです！
+      </p>
+
+      <div class="space-y-2">
+        <button id="playAgainBtn" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition-all">
+          もう一度遊ぶ
+        </button>
+        <button id="modalSettingsBtn" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl border border-slate-700 transition-all">
+          設定変更
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <!-- Sound Generator Script using Web Audio API -->
+  <script>
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playClick() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      playVanish() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      playLifeLoss() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+
+      playWin() {
+        if (this.muted) return;
+        this.init();
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.1 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.1);
+          osc.stop(this.ctx.currentTime + idx * 0.1 + 0.3);
+        });
+      }
+
+      playLose() {
+        if (this.muted) return;
+        this.init();
+        const notes = [400, 350, 300, 220];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.12 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.12);
+          osc.stop(this.ctx.currentTime + idx * 0.12 + 0.25);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+  </script>
+
+  <!-- Game Engine JavaScript Logic -->
+  <script>
+    // ===================================================
+    //  定数・勝利ライン定義
+    // ===================================================
+    const WIN_LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // ===================================================
+    //  State (ゲーム状態構造体)
+    // ===================================================
+    class State {
+      constructor(life = 3) {
+        this.board = new Array(9).fill(0); // 0: empty, >0: O(val), <0: X(-val)
+        this.oQueue = []; // [{player:'O', num:1, pos:0}, ...]
+        this.xQueue = []; // [{player:'X', num:1, pos:0}, ...]
+        this.oTotal = 0;
+        this.xTotal = 0;
+        this.oLife = life;
+        this.xLife = life;
+      }
+
+      clone() {
+        const s = new State();
+        s.board = [...this.board];
+        s.oQueue = this.oQueue.map(m => ({ ...m }));
+        s.xQueue = this.xQueue.map(m => ({ ...m }));
+        s.oTotal = this.oTotal;
+        s.xTotal = this.xTotal;
+        s.oLife = this.oLife;
+        s.xLife = this.xLife;
+        return s;
+      }
+    }
+
+    // 勝敗判定
+    function checkWinner(s) {
+      for (const ln of WIN_LINES) {
+        const a = s.board[ln[0]];
+        const b = s.board[ln[1]];
+        const c = s.board[ln[2]];
+        if (a > 0 && b > 0 && c > 0) return 'O';
+        if (a < 0 && b < 0 && c < 0) return 'X';
+      }
+      return null;
+    }
+
+    function isGameOver(s) {
+      return checkWinner(s) !== null || s.oLife <= 0 || s.xLife <= 0;
+    }
+
+    // 有効手の取得
+    function getValidMoves(s, player, maxMarks) {
+      const moves = [];
+      for (let i = 0; i < 9; i++) {
+        if (s.board[i] === 0) moves.push(i);
+      }
+      const q = (player === 'O') ? s.oQueue : s.xQueue;
+      if (q.length >= maxMarks) {
+        const op = q[0].pos;
+        if (!moves.includes(op)) {
+          moves.push(op);
+        }
+      }
+      return moves;
+    }
+
+    // マークの配置
+    function placeMark(s, pos, player, maxMarks) {
+      const ns = s.clone();
+      let lostLife = false;
+
+      const q = (player === 'O') ? ns.oQueue : ns.xQueue;
+      let total = (player === 'O') ? ++ns.oTotal : ++ns.xTotal;
+
+      // 自分の最古マークの上に重ねて打つ場合
+      if (q.length > 0 && q[0].pos === pos) {
+        ns.board[pos] = 0;
+        q.shift();
+        if (player === 'O') ns.oLife--;
+        else ns.xLife--;
+        lostLife = true;
+      }
+
+      ns.board[pos] = (player === 'O') ? total : -total;
+      q.push({ player, num: total, pos });
+
+      // 最大数を超えた場合、自動消去
+      if (q.length > maxMarks) {
+        const op = q[0].pos;
+        ns.board[op] = 0;
+        q.shift();
+      }
+
+      return { state: ns, lostLife };
+    }
+
+    function isPlayerMark(s, pos, player) {
+      return (player === 'O') ? (s.board[pos] > 0) : (s.board[pos] < 0);
+    }
+
+    // 状態ハッシュキー生成（千日手・置換表用）
+    function getStateKey(s, curPlayer) {
+      return s.board.join(',') + '|' + s.oLife + '|' + s.xLife + '|' + curPlayer;
+    }
+
+    // 評価関数
+    function evaluate(s, me) {
+      const w = checkWinner(s);
+      const opp = (me === 'O') ? 'X' : 'O';
+
+      if (w === me) return 10000;
+      if (w === opp) return -10000;
+
+      const myLife = (me === 'O') ? s.oLife : s.xLife;
+      const oppLife = (me === 'O') ? s.xLife : s.oLife;
+
+      if (myLife <= 0) return -10000;
+      if (oppLife <= 0) return 10000;
+
+      let score = (myLife - oppLife) * 1000;
+
+      // 中央マスの価値
+      if (s.board[4] !== 0) {
+        if (isPlayerMark(s, 4, me)) score += 20;
+        else score -= 20;
+      }
+
+      // リーチ・ラインの評価
+      for (const ln of WIN_LINES) {
+        let myCount = 0, oppCount = 0, emptyCount = 0;
+        for (const p of ln) {
+          if (s.board[p] === 0) emptyCount++;
+          else if (isPlayerMark(s, p, me)) myCount++;
+          else oppCount++;
+        }
+        if (myCount === 2 && emptyCount === 1) score += 50;
+        if (oppCount === 2 && emptyCount === 1) score -= 50;
+        if (myCount === 1 && emptyCount === 2) score += 5;
+        if (oppCount === 1 && emptyCount === 2) score -= 5;
+      }
+
+      // 最新マークの寿命評価
+      const myQ = (me === 'O') ? s.oQueue : s.xQueue;
+      for (let i = 0; i < myQ.length; i++) score += (i * 2);
+
+      const oppQ = (opp === 'O') ? s.oQueue : s.xQueue;
+      for (let i = 0; i < oppQ.length; i++) score -= (i * 2);
+
+      return score;
+    }
+
+    // 置換表 (Transposition Table)
+    const transpositionTable = new Map();
+
+    // Minimax Algorithm
+    function minimax(s, cur, me, depth, alpha, beta, maxMarks, pathVisited) {
+      const w = checkWinner(s);
+      if (w || s.oLife <= 0 || s.xLife <= 0 || depth === 0) {
+        return evaluate(s, me);
+      }
+
+      const key = getStateKey(s, cur);
+
+      // 1. 千日手（無限ループ）判定
+      if (pathVisited.has(key)) {
+        return 0; // 引き分け
+      }
+
+      // 2. 置換表参照
+      if (transpositionTable.has(key)) {
+        const entry = transpositionTable.get(key);
+        if (entry.depth >= depth) {
+          return entry.score;
+        }
+      }
+
+      pathVisited.add(key);
+
+      const moves = getValidMoves(s, cur, maxMarks);
+      if (moves.length === 0) {
+        pathVisited.delete(key);
+        return evaluate(s, me);
+      }
+
+      const nextP = (cur === 'O') ? 'X' : 'O';
+      const isMax = (cur === me);
+      let bestScore = isMax ? -Infinity : Infinity;
+
+      for (const pos of moves) {
+        const { state: ns } = placeMark(s, pos, cur, maxMarks);
+        const score = minimax(ns, nextP, me, depth - 1, alpha, beta, maxMarks, pathVisited);
+
+        if (isMax) {
+          bestScore = Math.max(bestScore, score);
+          alpha = Math.max(alpha, bestScore);
+        } else {
+          bestScore = Math.min(bestScore, score);
+          beta = Math.min(beta, bestScore);
+        }
+
+        if (beta <= alpha) break; // αβ枝刈り
+      }
+
+      pathVisited.delete(key);
+      transpositionTable.set(key, { depth, score: bestScore });
+
+      return bestScore;
+    }
+
+    // 即勝ち手チェック
+    function findImmediateWin(s, player, maxMarks) {
+      const moves = getValidMoves(s, player, maxMarks);
+      for (const pos of moves) {
+        const { state: ns } = placeMark(s, pos, player, maxMarks);
+        if (checkWinner(ns) === player) return pos;
+      }
+      return -1;
+    }
+
+    // 即ブロックチェック
+    function findImmediateBlock(s, player, maxMarks) {
+      const opp = (player === 'O') ? 'X' : 'O';
+      const moves = getValidMoves(s, opp, maxMarks);
+      for (const pos of moves) {
+        const { state: ns } = placeMark(s, pos, opp, maxMarks);
+        if (checkWinner(ns) === opp) return pos;
+      }
+      return -1;
+    }
+
+    // AIの意思決定
+    function chooseMove(s, player, maxMarks, searchDepth = 8) {
+      const moves = getValidMoves(s, player, maxMarks);
+      if (moves.length === 0) return { pos: 0, reason: "指せる手がありません" };
+
+      // 1. 即勝ち手
+      const win = findImmediateWin(s, player, maxMarks);
+      if (win >= 0) return { pos: win, reason: "即勝ち手" };
+
+      // ターン毎に置換表クリア
+      transpositionTable.clear();
+
+      let bestPos = moves[0];
+      let bestScore = -Infinity;
+      const opp = (player === 'O') ? 'X' : 'O';
+      const pathVisited = new Set();
+
+      for (const pos of moves) {
+        const { state: ns } = placeMark(s, pos, player, maxMarks);
+        const score = minimax(ns, opp, player, searchDepth, -Infinity, Infinity, maxMarks, pathVisited);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestPos = pos;
+        }
+      }
+
+      let reason = `完全解析（深さ ${searchDepth}）による最善手`;
+      const blk = findImmediateBlock(s, player, maxMarks);
+      if (blk >= 0 && bestPos === blk) {
+        reason = "相手の即勝ちをブロック";
+      }
+
+      return { pos: bestPos, reason };
+    }
+
+    // ===================================================
+    //  UI / App Controller
+    // ===================================================
+    class AppController {
+      constructor() {
+        this.maxMarks = 3;
+        this.isVsAI = true;
+        this.humanPlayer = 'O'; // 'O' or 'X'
+        this.aiDepth = 8;
+        
+        this.state = new State(3);
+        this.curPlayer = 'O';
+        this.isProcessing = false;
+        this.hintPos = null;
+
+        this.initDOM();
+        this.bindEvents();
+        this.restartGame();
+      }
+
+      initDOM() {
+        this.gridEl = document.getElementById('boardGrid');
+        this.oHeartsEl = document.getElementById('oHearts');
+        this.xHeartsEl = document.getElementById('xHearts');
+        this.oQueueEl = document.getElementById('oQueueList');
+        this.xQueueEl = document.getElementById('xQueueList');
+        
+        this.playerOCard = document.getElementById('playerOCard');
+        this.playerXCard = document.getElementById('playerXCard');
+        this.playerOTurnInd = document.getElementById('playerOTurnIndicator');
+        this.playerXTurnInd = document.getElementById('playerXTurnIndicator');
+        this.playerOLabel = document.getElementById('playerOLabel');
+        this.playerXLabel = document.getElementById('playerXLabel');
+
+        this.statusBanner = document.getElementById('statusBanner');
+        this.statusDot = document.getElementById('statusDot');
+        this.statusText = document.getElementById('statusText');
+        this.aiReasonText = document.getElementById('aiReasonText');
+        this.aiThinkingBadge = document.getElementById('aiThinkingBadge');
+        this.overwriteWarningBanner = document.getElementById('overwriteWarningBanner');
+
+        // Modals
+        this.settingsModal = document.getElementById('settingsModal');
+        this.rulesModal = document.getElementById('rulesModal');
+        this.gameOverModal = document.getElementById('gameOverModal');
+
+        // Create 9 grid cells
+        this.gridEl.innerHTML = '';
+        for (let i = 0; i < 9; i++) {
+          const btn = document.createElement('button');
+          btn.className = `board-cell rounded-2xl bg-slate-900/90 border border-slate-800/80 hover:border-slate-700 flex flex-col items-center justify-center font-outfit text-2xl font-bold transition-all relative overflow-hidden`;
+          btn.dataset.pos = i;
+          
+          const idxSpan = document.createElement('span');
+          idxSpan.className = 'text-slate-700 text-xs font-mono absolute top-2 left-2.5 pointer-events-none';
+          idxSpan.textContent = i + 1;
+          btn.appendChild(idxSpan);
+
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'cell-content flex items-center justify-center w-full h-full';
+          btn.appendChild(contentDiv);
+
+          btn.addEventListener('click', () => this.handleCellClick(i));
+          this.gridEl.appendChild(btn);
+        }
+      }
+
+      bindEvents() {
+        // Sound toggle
+        document.getElementById('soundToggleBtn').addEventListener('click', () => {
+          sound.muted = !sound.muted;
+          document.getElementById('soundOnIcon').classList.toggle('hidden', sound.muted);
+          document.getElementById('soundOffIcon').classList.toggle('hidden', !sound.muted);
+        });
+
+        // Modals
+        document.getElementById('settingsBtn').addEventListener('click', () => this.openModal(this.settingsModal));
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => this.closeModal(this.settingsModal));
+        
+        document.getElementById('rulesBtn').addEventListener('click', () => this.openModal(this.rulesModal));
+        document.getElementById('closeRulesBtn').addEventListener('click', () => this.closeModal(this.rulesModal));
+
+        document.getElementById('restartBtn').addEventListener('click', () => this.restartGame());
+        document.getElementById('playAgainBtn').addEventListener('click', () => {
+          this.closeModal(this.gameOverModal);
+          this.restartGame();
+        });
+        document.getElementById('modalSettingsBtn').addEventListener('click', () => {
+          this.closeModal(this.gameOverModal);
+          this.openModal(this.settingsModal);
+        });
+
+        // Hint button
+        document.getElementById('hintBtn').addEventListener('click', () => this.showHint());
+
+        // Settings toggles
+        document.getElementById('opt3Marks').addEventListener('click', (e) => this.setMarkRule(3, e.currentTarget));
+        document.getElementById('opt4Marks').addEventListener('click', (e) => this.setMarkRule(4, e.currentTarget));
+        
+        document.getElementById('optFirstPlayer').addEventListener('click', (e) => this.setPlayerOrder('O', e.currentTarget));
+        document.getElementById('optSecondPlayer').addEventListener('click', (e) => this.setPlayerOrder('X', e.currentTarget));
+
+        document.getElementById('optVsAI').addEventListener('click', (e) => this.setGameMode(true, e.currentTarget));
+        document.getElementById('optVsHuman').addEventListener('click', (e) => this.setGameMode(false, e.currentTarget));
+
+        document.getElementById('applySettingsBtn').addEventListener('click', () => {
+          this.aiDepth = parseInt(document.getElementById('aiDepthSelect').value);
+          this.closeModal(this.settingsModal);
+          this.restartGame();
+        });
+      }
+
+      openModal(modal) {
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.firstElementChild.classList.remove('scale-95');
+        modal.firstElementChild.classList.add('scale-100');
+      }
+
+      closeModal(modal) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.firstElementChild.classList.remove('scale-100');
+        modal.firstElementChild.classList.add('scale-95');
+      }
+
+      setMarkRule(val, btn) {
+        this.maxMarks = val;
+        document.getElementById('opt3Marks').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all ${val === 3 ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+        document.getElementById('opt4Marks').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all ${val === 4 ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+      }
+
+      setPlayerOrder(order, btn) {
+        this.humanPlayer = order;
+        document.getElementById('optFirstPlayer').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${order === 'O' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+        document.getElementById('optSecondPlayer').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${order === 'X' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+      }
+
+      setGameMode(isVsAI, btn) {
+        this.isVsAI = isVsAI;
+        document.getElementById('optVsAI').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${isVsAI ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+        document.getElementById('optVsHuman').className = `py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${!isVsAI ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/80 border-slate-700 text-slate-400'}`;
+        document.getElementById('aiDifficultyGroup').style.display = isVsAI ? 'block' : 'none';
+      }
+
+      restartGame() {
+        this.state = new State(3);
+        this.curPlayer = 'O';
+        this.isProcessing = false;
+        this.hintPos = null;
+
+        // Update labels
+        if (this.isVsAI) {
+          this.playerOLabel.textContent = (this.humanPlayer === 'O') ? 'あなた (O)' : 'AI (O)';
+          this.playerXLabel.textContent = (this.humanPlayer === 'X') ? 'あなた (X)' : 'AI (X)';
+        } else {
+          this.playerOLabel.textContent = 'プレイヤー1 (O)';
+          this.playerXLabel.textContent = 'プレイヤー2 (X)';
+        }
+
+        this.aiReasonText.textContent = "ゲーム開始！手番のプレイヤーはマスを選択してください。";
+        this.updateUI();
+
+        // If AI is First Player (X is AI and starts or O is AI)
+        if (this.isVsAI && this.curPlayer !== this.humanPlayer) {
+          this.triggerAIMove();
+        }
+      }
+
+      updateUI() {
+        // Render Board Cells
+        const validMoves = getValidMoves(this.state, this.curPlayer, this.maxMarks);
+
+        // Find oldest marks that are next to disappear
+        const oOldestPos = (this.state.oQueue.length >= this.maxMarks) ? this.state.oQueue[0].pos : -1;
+        const xOldestPos = (this.state.xQueue.length >= this.maxMarks) ? this.state.xQueue[0].pos : -1;
+
+        for (let i = 0; i < 9; i++) {
+          const cellBtn = this.gridEl.children[i];
+          const contentDiv = cellBtn.children[1];
+          const val = this.state.board[i];
+
+          contentDiv.innerHTML = '';
+          cellBtn.className = `board-cell rounded-2xl bg-slate-900/90 border flex flex-col items-center justify-center font-outfit transition-all relative overflow-hidden `;
+
+          // Check if it's oldest vanishing mark
+          const isOOld = (i === oOldestPos);
+          const isXOld = (i === xOldestPos);
+
+          if (val === 0) {
+            cellBtn.classList.add('border-slate-800/80', 'hover:border-slate-700', 'hover:bg-slate-800/50');
+          } else if (val > 0) { // O Mark
+            cellBtn.classList.add('bg-cyan-950/40', 'border-cyan-500/50', 'shadow-lg', 'shadow-cyan-500/10');
+            if (isOOld) {
+              cellBtn.classList.add('border-amber-400', 'animate-glow-pulse');
+            }
+
+            const symbolSpan = document.createElement('span');
+            symbolSpan.className = `text-3xl sm:text-4xl font-extrabold text-cyan-400 flex items-center justify-center`;
+            symbolSpan.textContent = `O${val}`;
+            contentDiv.appendChild(symbolSpan);
+
+            if (isOOld) {
+              const tagSpan = document.createElement('span');
+              tagSpan.className = 'absolute bottom-1 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-tighter';
+              tagSpan.textContent = '消去直前';
+              contentDiv.appendChild(tagSpan);
+            }
+          } else { // X Mark
+            cellBtn.classList.add('bg-rose-950/40', 'border-rose-500/50', 'shadow-lg', 'shadow-rose-500/10');
+            if (isXOld) {
+              cellBtn.classList.add('border-amber-400', 'animate-glow-pulse');
+            }
+
+            const symbolSpan = document.createElement('span');
+            symbolSpan.className = `text-3xl sm:text-4xl font-extrabold text-rose-400 flex items-center justify-center`;
+            symbolSpan.textContent = `X${Math.abs(val)}`;
+            contentDiv.appendChild(symbolSpan);
+
+            if (isXOld) {
+              const tagSpan = document.createElement('span');
+              tagSpan.className = 'absolute bottom-1 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-tighter';
+              tagSpan.textContent = '消去直前';
+              contentDiv.appendChild(tagSpan);
+            }
+          }
+
+          // Highlight hint
+          if (this.hintPos === i) {
+            cellBtn.classList.add('ring-2', 'ring-amber-400', 'bg-amber-500/20');
+          }
+        }
+
+        // Render Hearts
+        this.renderHearts(this.oHeartsEl, this.state.oLife);
+        this.renderHearts(this.xHeartsEl, this.state.xLife);
+
+        // Render Queue lists
+        this.renderQueue(this.oQueueEl, this.state.oQueue, 'O', oOldestPos);
+        this.renderQueue(this.xQueueEl, this.state.xQueue, 'X', xOldestPos);
+
+        // Update Turn Indicators & Cards
+        const isOTurn = (this.curPlayer === 'O');
+        this.playerOCard.className = `glass-card rounded-2xl p-4 flex flex-col justify-between border-2 transition-all duration-300 ${isOTurn ? 'border-cyan-500 shadow-lg shadow-cyan-500/10' : 'border-slate-800 opacity-70'}`;
+        this.playerXCard.className = `glass-card rounded-2xl p-4 flex flex-col justify-between border-2 transition-all duration-300 ${!isOTurn ? 'border-rose-500 shadow-lg shadow-rose-500/10' : 'border-slate-800 opacity-70'}`;
+
+        this.playerOTurnInd.style.opacity = isOTurn ? '1' : '0';
+        this.playerXTurnInd.style.opacity = !isOTurn ? '1' : '0';
+
+        this.statusDot.className = `w-2.5 h-2.5 rounded-full ${isOTurn ? 'bg-cyan-400' : 'bg-rose-400'} animate-pulse`;
+        const currentName = isOTurn ? this.playerOLabel.textContent : this.playerXLabel.textContent;
+        this.statusText.textContent = `${currentName} のターン`;
+
+        // Check Overwrite Warning for human
+        const curQ = (this.curPlayer === 'O') ? this.state.oQueue : this.state.xQueue;
+        if (curQ.length >= this.maxMarks && (!this.isVsAI || this.curPlayer === this.humanPlayer)) {
+          this.overwriteWarningBanner.style.opacity = '1';
+        } else {
+          this.overwriteWarningBanner.style.opacity = '0';
+        }
+      }
+
+      renderHearts(el, count) {
+        el.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+          const span = document.createElement('span');
+          span.className = i < count ? 'text-rose-500 scale-100 transition-transform' : 'text-slate-700 opacity-40';
+          span.textContent = '♥';
+          el.appendChild(span);
+        }
+      }
+
+      renderQueue(el, queue, player, oldestPos) {
+        if (queue.length === 0) {
+          el.innerHTML = '<span class="text-slate-600">（なし）</span>';
+          return;
+        }
+        el.innerHTML = '';
+        queue.forEach((m, idx) => {
+          const badge = document.createElement('span');
+          const isOldest = (m.pos === oldestPos);
+          badge.className = `px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+            isOldest 
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' 
+              : (player === 'O' ? 'bg-cyan-500/20 text-cyan-300' : 'bg-rose-500/20 text-rose-300')
+          }`;
+          badge.textContent = `${player}${m.num}${isOldest ? ' (消去)' : ''}`;
+          el.appendChild(badge);
+        });
+      }
+
+      handleCellClick(pos) {
+        if (this.isProcessing) return;
+        if (this.isVsAI && this.curPlayer !== this.humanPlayer) return;
+
+        const validMoves = getValidMoves(this.state, this.curPlayer, this.maxMarks);
+        if (!validMoves.includes(pos)) {
+          return; // invalid move
+        }
+
+        this.executeMove(pos);
+      }
+
+      executeMove(pos) {
+        this.hintPos = null;
+        const { state: ns, lostLife } = placeMark(this.state, pos, this.curPlayer, this.maxMarks);
+        this.state = ns;
+
+        if (lostLife) {
+          sound.playLifeLoss();
+        } else {
+          sound.playClick();
+        }
+
+        // Check Game Over
+        if (isGameOver(this.state)) {
+          this.updateUI();
+          this.handleGameOver();
+          return;
+        }
+
+        // Switch Turn
+        this.curPlayer = (this.curPlayer === 'O') ? 'X' : 'O';
+        this.updateUI();
+
+        // Trigger AI if applicable
+        if (this.isVsAI && this.curPlayer !== this.humanPlayer) {
+          this.triggerAIMove();
+        }
+      }
+
+      triggerAIMove() {
+        this.isProcessing = true;
+        this.aiThinkingBadge.classList.remove('hidden');
+        this.aiReasonText.textContent = "AIが思考中...";
+
+        setTimeout(() => {
+          const result = chooseMove(this.state, this.curPlayer, this.maxMarks, this.aiDepth);
+          this.aiReasonText.textContent = `AIの判断: [${result.reason}] (マス ${result.pos + 1})`;
+          this.aiThinkingBadge.classList.add('hidden');
+
+          const { state: ns, lostLife } = placeMark(this.state, result.pos, this.curPlayer, this.maxMarks);
+          this.state = ns;
+
+          if (lostLife) {
+            sound.playLifeLoss();
+          } else {
+            sound.playClick();
+          }
+
+          if (isGameOver(this.state)) {
+            this.updateUI();
+            this.handleGameOver();
+            this.isProcessing = false;
+            return;
+          }
+
+          this.curPlayer = (this.curPlayer === 'O') ? 'X' : 'O';
+          this.isProcessing = false;
+          this.updateUI();
+        }, 350);
+      }
+
+      showHint() {
+        if (this.isProcessing || isGameOver(this.state)) return;
+        const result = chooseMove(this.state, this.curPlayer, this.maxMarks, 6);
+        this.hintPos = result.pos;
+        this.aiReasonText.textContent = `💡 ヒント: マス ${result.pos + 1} (${result.reason})`;
+        this.updateUI();
+      }
+
+      handleGameOver() {
+        const winner = checkWinner(this.state);
+        let winnerText = "";
+        let isHumanWin = false;
+
+        if (winner) {
+          winnerText = `${winner} が3つ揃えて勝利！`;
+          if (this.isVsAI) isHumanWin = (winner === this.humanPlayer);
+        } else if (this.state.oLife <= 0) {
+          winnerText = "O のライフが尽きました！ X の勝利！";
+          if (this.isVsAI) isHumanWin = (this.humanPlayer === 'X');
+        } else if (this.state.xLife <= 0) {
+          winnerText = "X のライフが尽きました！ O の勝利！";
+          if (this.isVsAI) isHumanWin = (this.humanPlayer === 'O');
+        }
+
+        const titleEl = document.getElementById('gameOverTitle');
+        const subtitleEl = document.getElementById('gameOverSubtitle');
+        const iconEl = document.getElementById('gameOverIcon');
+
+        if (isHumanWin || (!this.isVsAI && winner)) {
+          iconEl.textContent = '🎉';
+          titleEl.textContent = '勝利！';
+          subtitleEl.textContent = winnerText;
+          sound.playWin();
+          this.launchConfetti();
+        } else {
+          iconEl.textContent = '💀';
+          titleEl.textContent = '敗北...';
+          subtitleEl.textContent = winnerText;
+          sound.playLose();
+        }
+
+        setTimeout(() => {
+          this.openModal(this.gameOverModal);
+        }, 500);
+      }
+
+      launchConfetti() {
+        const canvas = document.getElementById('confettiCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const colors = ['#06b6d4', '#f43f5e', '#f59e0b', '#8b5cf6', '#10b981'];
+
+        for (let i = 0; i < 80; i++) {
+          particles.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: (Math.random() - 0.5) * 12,
+            vy: (Math.random() - 0.7) * 12,
+            size: Math.random() * 6 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 100
+          });
+        }
+
+        function animate() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          let active = false;
+          particles.forEach(p => {
+            if (p.life > 0) {
+              active = true;
+              p.x += p.vx;
+              p.y += p.vy;
+              p.vy += 0.2; // gravity
+              p.life--;
+              ctx.fillStyle = p.color;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+          if (active) requestAnimationFrame(animate);
+        }
+        animate();
+      }
+    }
+
+    // Launch Application when DOM ready
+    window.addEventListener('DOMContentLoaded', () => {
+      window.app = new AppController();
+    });
+  </script>
+</body>
+</html>
